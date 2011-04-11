@@ -133,7 +133,7 @@ class OAuthHandler(AuthHandler):
         and request activation of xAuth for it.
         """
         try:
-            url = self._get_oauth_url('access_token', secure=True) # must use HTTPS
+            url = self._get_oauth_url('access_token', secure=False) # must use HTTPS
             request = oauth.OAuthRequest.from_consumer_and_token(
                 oauth_consumer=self._consumer,
                 http_method='POST', http_url=url,
@@ -151,9 +151,29 @@ class OAuthHandler(AuthHandler):
         except Exception, e:
             raise TweepError(e)
 
-    def get_username(self):
+    def get_xauth_request(self, username, password):
+        try:
+            url = self._get_oauth_url('access_token', secure=False) # must use HTTPS
+            request = oauth.OAuthRequest.from_consumer_and_token(
+                oauth_consumer=self._consumer,
+                http_method='POST', http_url=url,
+                parameters = {
+		            'x_auth_mode': 'client_auth',
+		            'x_auth_username': username,
+		            'x_auth_password': password
+                }
+            )
+            request.sign_request(self._sigmethod, self._consumer, None)
+            self.xauth_request = Request(url, data=request.to_postdata())
+            return self.xauth_request
+        except Exception, e:
+            raise TweepError(e)
+
+
+
+    def get_username(self, api=None):
+        api = api or API(self)
         if self.username is None:
-            api = API(self)
             user = api.verify_credentials()
             if user:
                 self.username = user.screen_name

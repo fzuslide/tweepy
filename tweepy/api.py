@@ -17,10 +17,15 @@ class API(object):
     def __init__(self, auth_handler=None,
             host='api.twitter.com', search_host='search.twitter.com',
              cache=None, secure=False, api_root='/1', search_root='',
-            retry_count=0, retry_delay=0, retry_errors=None,
+            retry_count=0, retry_delay=0, retry_errors=None, source=None,
             parser=None):
         self.auth = auth_handler
         self.host = host
+        if source == None:
+            if auth_handler != None:
+                self.source = self.auth._consumer.key
+        else:
+            self.source = source
         self.search_host = search_host
         self.api_root = api_root
         self.search_root = search_root
@@ -53,7 +58,48 @@ class API(object):
         allowed_param = ['since_id', 'max_id', 'count', 'page'],
         require_auth = True
     )
-
+    """ statuses/comment """
+    comment = bind_api(
+        path = '/statuses/comment.json',
+        method = 'POST',
+        payload_type = 'comments',
+        allowed_param = ['id', 'cid', 'comment'],
+        require_auth = True
+    )
+    
+    """ statuses/comment_destroy """
+    comment_destroy  = bind_api(
+        path = '/statuses/comment_destroy/{id}.json',
+        method = 'POST',
+        payload_type = 'comments',
+        allowed_param = ['id'],
+        require_auth = True
+    )
+    
+    """ statuses/comments_timeline """
+    comments = bind_api(
+        path = '/statuses/comments.json',
+        payload_type = 'comments', payload_list = True,
+        allowed_param = ['id', 'count', 'page'],
+        require_auth = True
+    )
+    
+    """ statuses/comments_timeline """
+    comments_timeline = bind_api(
+        path = '/statuses/comments_timeline.json',
+        payload_type = 'comments', payload_list = True,
+        allowed_param = ['since_id', 'max_id', 'count', 'page'],
+        require_auth = True
+    )
+    
+    """ statuses/comments_by_me """
+    comments_by_me = bind_api(
+        path = '/statuses/comments_by_me.json',
+        payload_type = 'comments', payload_list = True,
+        allowed_param = ['since_id', 'max_id', 'count', 'page'],
+        require_auth = True
+    )
+    
     """ statuses/user_timeline """
     user_timeline = bind_api(
         path = '/statuses/user_timeline.json',
@@ -133,10 +179,80 @@ class API(object):
         allowed_param = ['status', 'in_reply_to_status_id', 'lat', 'long', 'source', 'place_id'],
         require_auth = True
     )
+    
+    """ statused/upload_url_text """
+    def upload_url_text(self, url, status, lat=None, long=None, source=None):
+        if source is None:
+            source=self.source
+        
+        args = [status]
+        allowed_param = ['status']
+        args.append(url)
+        allowed_param.append('url')
+
+        if lat is not None:
+            args.append(lat)
+            allowed_param.append('lat')
+        
+        if long is not None:
+            args.append(long)
+            allowed_param.append('long')
+        return bind_api(
+            path = '/statuses/upload_url_text.json',            
+            method = 'POST',
+            payload_type = 'status',
+            require_auth = True,
+            allowed_param = allowed_param            
+        )(self, *args)
+
+    """ statuses/upload """
+    def upload(self, filename, status, lat=None, long=None, source=None):
+        if source is None:
+            source=self.source
+        headers, post_data = API._pack_image(filename, 1024, source=source, status=status, lat=lat, long=long, contentname="pic")
+        args = [status]
+        allowed_param = ['status']
+        
+        if lat is not None:
+            args.append(lat)
+            allowed_param.append('lat')
+        
+        if long is not None:
+            args.append(long)
+            allowed_param.append('long')
+        
+        if source is not None:
+            args.append(source)
+            allowed_param.append('source')
+        return bind_api(
+            path = '/statuses/upload.json',            
+            method = 'POST',
+            payload_type = 'status',
+            require_auth = True,
+            allowed_param = allowed_param            
+        )(self, *args, post_data=post_data, headers=headers)
+        
+    """ statuses/reply """
+    reply = bind_api(
+        path = '/statuses/reply.json',
+        method = 'POST',
+        payload_type = 'status',
+        allowed_param = ['id', 'cid','comment'],
+        require_auth = True
+    )
+    
+    """ statuses/repost """
+    repost = bind_api(
+        path = '/statuses/repost.json',
+        method = 'POST',
+        payload_type = 'status',
+        allowed_param = ['id', 'status'],
+        require_auth = True
+    )
 
     """ statuses/destroy """
     destroy_status = bind_api(
-        path = '/statuses/destroy.json',
+        path = '/statuses/destroy/{id}.json',
         method = 'DELETE',
         payload_type = 'status',
         allowed_param = ['id'],
@@ -221,17 +337,17 @@ class API(object):
     )
 
     """ direct_messages/new """
-    send_direct_message = bind_api(
+    new_direct_message = bind_api(
         path = '/direct_messages/new.json',
         method = 'POST',
         payload_type = 'direct_message',
-        allowed_param = ['user', 'screen_name', 'user_id', 'text'],
+        allowed_param = ['id', 'screen_name', 'user_id', 'text'],
         require_auth = True
     )
-
+    
     """ direct_messages/destroy """
     destroy_direct_message = bind_api(
-        path = '/direct_messages/destroy.json',
+        path = '/direct_messages/destroy/{id}.json',
         method = 'DELETE',
         payload_type = 'direct_message',
         allowed_param = ['id'],
@@ -274,8 +390,9 @@ class API(object):
     """ friends/ids """
     friends_ids = bind_api(
         path = '/friends/ids.json',
-        payload_type = 'ids',
-        allowed_param = ['id', 'user_id', 'screen_name', 'cursor']
+        payload_type = 'user',
+        allowed_param = ['id', 'user_id', 'screen_name', 'cursor', 'count'],
+        require_auth = True
     )
 
     """ friendships/incoming """
@@ -293,10 +410,10 @@ class API(object):
     )
 
     """ followers/ids """
-    followers_ids = bind_api(
+    followers_ids = bind_api(        
         path = '/followers/ids.json',
-        payload_type = 'ids',
-        allowed_param = ['id', 'user_id', 'screen_name', 'cursor']
+        payload_type = 'json',
+        allowed_param = ['id', 'page'],
     )
 
     """ account/verify_credentials """
@@ -370,7 +487,7 @@ class API(object):
 
     """ favorites """
     favorites = bind_api(
-        path = '/favorites.json',
+        path = '/favorites/{id}.json',
         payload_type = 'status', payload_list = True,
         allowed_param = ['id', 'page']
     )
@@ -558,7 +675,7 @@ class API(object):
     list_timeline = bind_api(
         path = '/{owner}/lists/{slug}/statuses.json',
         payload_type = 'status', payload_list = True,
-        allowed_param = ['owner', 'slug', 'since_id', 'max_id', 'per_page', 'page']
+        allowed_param = ['owner', 'slug', 'since_id', 'max_id', 'count', 'page']
     )
 
     get_list = bind_api(
@@ -650,18 +767,20 @@ class API(object):
         search_api = True,
         path = '/search.json',
         payload_type = 'search_result', payload_list = True,
-        allowed_param = ['q', 'lang', 'locale', 'rpp', 'page', 'since_id', 'geocode', 'show_user', 'max_id', 'since', 'until', 'result_type']
+        allowed_param = ['q', 'lang', 'locale', 'rpp', 'page', 'since_id', 'geocode', 'show_user']
     )
     search.pagination_mode = 'page'
 
     """ trends """
     trends = bind_api(
+        search_api = True,
         path = '/trends.json',
         payload_type = 'json'
     )
 
     """ trends/current """
     trends_current = bind_api(
+        search_api = True,
         path = '/trends/current.json',
         payload_type = 'json',
         allowed_param = ['exclude']
@@ -669,6 +788,7 @@ class API(object):
 
     """ trends/daily """
     trends_daily = bind_api(
+        search_api = True,
         path = '/trends/daily.json',
         payload_type = 'json',
         allowed_param = ['date', 'exclude']
@@ -676,6 +796,7 @@ class API(object):
 
     """ trends/weekly """
     trends_weekly = bind_api(
+        search_api = True,
         path = '/trends/weekly.json',
         payload_type = 'json',
         allowed_param = ['date', 'exclude']
@@ -704,7 +825,7 @@ class API(object):
 
     """ Internal use only """
     @staticmethod
-    def _pack_image(filename, max_size):
+    def _pack_image(filename, max_size, source=None, status=None, lat=None, long=None, contentname="image"):
         """Pack image from file into multipart-formdata post body"""
         # image must be less than 700kb in size
         try:
@@ -725,16 +846,46 @@ class API(object):
         fp = open(filename, 'rb')
         BOUNDARY = 'Tw3ePy'
         body = []
+        if status is not None:            
+            body.append('--' + BOUNDARY)
+            body.append('Content-Disposition: form-data; name="status"')
+            body.append('Content-Type: text/plain; charset=US-ASCII')
+            body.append('Content-Transfer-Encoding: 8bit')
+            body.append('')
+            body.append(status)
+        if source is not None:            
+            body.append('--' + BOUNDARY)
+            body.append('Content-Disposition: form-data; name="source"')
+            body.append('Content-Type: text/plain; charset=US-ASCII')
+            body.append('Content-Transfer-Encoding: 8bit')
+            body.append('')
+            body.append(source)
+        if lat is not None:            
+            body.append('--' + BOUNDARY)
+            body.append('Content-Disposition: form-data; name="lat"')
+            body.append('Content-Type: text/plain; charset=US-ASCII')
+            body.append('Content-Transfer-Encoding: 8bit')
+            body.append('')
+            body.append(lat)
+        if long is not None:            
+            body.append('--' + BOUNDARY)
+            body.append('Content-Disposition: form-data; name="long"')
+            body.append('Content-Type: text/plain; charset=US-ASCII')
+            body.append('Content-Transfer-Encoding: 8bit')
+            body.append('')
+            body.append(long)
         body.append('--' + BOUNDARY)
-        body.append('Content-Disposition: form-data; name="image"; filename="%s"' % filename)
+        body.append('Content-Disposition: form-data; name="'+ contentname +'"; filename="%s"' % filename)
         body.append('Content-Type: %s' % file_type)
+        body.append('Content-Transfer-Encoding: binary')
         body.append('')
         body.append(fp.read())
         body.append('--' + BOUNDARY + '--')
         body.append('')
-        fp.close()
+        fp.close()        
+        body.append('--' + BOUNDARY + '--')
+        body.append('')
         body = '\r\n'.join(body)
-
         # build headers
         headers = {
             'Content-Type': 'multipart/form-data; boundary=Tw3ePy',
