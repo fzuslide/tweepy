@@ -381,5 +381,5 @@ class TweepyCacheTests(unittest.TestCase):
 if __name__ == '__main__':
 
     unittest.main()
-    'add new test'
+
 
