@@ -181,3 +181,41 @@ class OAuthHandler(AuthHandler):
                 raise TweepError("Unable to get username, invalid oauth token!")
         return self.username
 
+class TxOAuthHandler(OAuthHandler):
+
+    def _get_request_token(self):
+        try:
+            url = self._get_oauth_url('request_token')
+            request = oauth.TxOAuthRequest.from_consumer_and_token(
+                self._consumer, http_url=url, callback=self.callback or 'null'
+            )
+            request.sign_request(self._sigmethod, self._consumer, None)
+            resp = urlopen(Request(request.to_url()))
+            return oauth.OAuthToken.from_string(resp.read())
+        except Exception, e:
+            raise TweepError(e)
+
+    def get_access_token(self, verifier=None):
+        """
+        After user has authorized the request token, get access token
+        with user supplied verifier.
+        """
+        try:
+            url = self._get_oauth_url('access_token')
+
+            # build request
+            request = oauth.OAuthRequest.from_consumer_and_token(
+                self._consumer,
+                token=self.request_token, http_url=url,
+                verifier=str(verifier)
+            )
+            request.sign_request(self._sigmethod, self._consumer, self.request_token)
+
+            # send request
+            resp = urlopen(Request(request.to_url()))
+            self.access_token = oauth.OAuthToken.from_string(resp.read())
+            return self.access_token
+        except Exception, e:
+            raise TweepError(e)
+
+

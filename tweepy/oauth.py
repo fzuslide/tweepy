@@ -366,6 +366,40 @@ class OAuthRequest(object):
         return parameters
     _split_url_string = staticmethod(_split_url_string)
 
+
+class TxOAuthRequest(OAuthRequest):
+
+    def from_consumer_and_token(oauth_consumer, token=None,
+            callback=None, verifier=None, http_method=HTTP_METHOD,
+            http_url=None, parameters=None):
+        if not parameters:
+            parameters = {}
+
+        defaults = {
+            'oauth_consumer_key': oauth_consumer.key,
+            'oauth_timestamp': generate_timestamp(),
+            'oauth_nonce': generate_nonce(32),
+            'oauth_version': OAuthRequest.version,
+        }
+
+        defaults.update(parameters)
+        parameters = defaults
+
+        if token:
+            parameters['oauth_token'] = token.key
+            if token.callback:
+                parameters['oauth_callback'] = token.callback
+            # 1.0a support for verifier.
+            if verifier:
+                parameters['oauth_verifier'] = verifier
+        elif callback:
+            # 1.0a support for callback in the request token request.
+            parameters['oauth_callback'] = callback
+
+        return OAuthRequest(http_method, http_url, parameters)
+    from_consumer_and_token = staticmethod(from_consumer_and_token)
+
+
 class OAuthServer(object):
     """A worker to check the validity of a request against a data store."""
     timestamp_threshold = 300 # In seconds, five minutes.
