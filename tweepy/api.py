@@ -179,6 +179,25 @@ class API(object):
         allowed_param = ['status', 'in_reply_to_status_id', 'lat', 'long', 'source', 'place_id'],
         require_auth = True
     )
+
+    """ t/add """
+    t_add = bind_api(
+        path = '/api/t/add?format=json',
+        method = 'POST',
+        payload_type = 'status',
+        allowed_param = ['content', 'clientip', 'jing', 'wei'],
+        require_auth = True
+    )
+
+    """ t/add """
+    t_add_pic = bind_api(
+        path = '/api/t/add_pic?format=json',
+        method = 'POST',
+        payload_type = 'status',
+        allowed_param = ['content', 'clientip', 'jing', 'wei', 'pic'],
+        require_auth = True
+    )
+
     
     """ statused/upload_url_text """
     def upload_url_text(self, url, status, lat=None, long=None, source=None):
@@ -428,6 +447,20 @@ class API(object):
             if e.response and e.response.status == 401:
                 return False
             raise
+        
+    """ api/user/info"""
+    def user_info(self):
+        try:
+            return bind_api(
+                path = '/api/user/info?format=json',
+                payload_type = 'user',
+                require_auth = True
+            )(self)
+        except TweepError, e:
+            if e.response and e.response.status == 401:
+                return False
+            raise
+
 
     """ account/rate_limit_status """
     rate_limit_status = bind_api(

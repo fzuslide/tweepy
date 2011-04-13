@@ -40,7 +40,7 @@ class OAuthHandler(AuthHandler):
     OAUTH_HOST = 'api.twitter.com'
     OAUTH_ROOT = '/oauth/'
 
-    def __init__(self, consumer_key, consumer_secret, callback=None, secure=False):
+    def __init__(self, consumer_key, consumer_secret, callback=None, no_headers=False, secure=False):
         self._consumer = oauth.OAuthConsumer(consumer_key, consumer_secret)
         self._sigmethod = oauth.OAuthSignatureMethod_HMAC_SHA1()
         self.request_token = None
@@ -48,6 +48,7 @@ class OAuthHandler(AuthHandler):
         self.callback = callback
         self.username = None
         self.secure = secure
+        self.no_headers = no_headers
 
     def _get_oauth_url(self, endpoint, secure=False):
         if self.secure or secure:
@@ -169,8 +170,6 @@ class OAuthHandler(AuthHandler):
         except Exception, e:
             raise TweepError(e)
 
-
-
     def get_username(self, api=None):
         api = api or API(self)
         if self.username is None:
@@ -182,6 +181,14 @@ class OAuthHandler(AuthHandler):
         return self.username
 
 class TxOAuthHandler(OAuthHandler):
+
+    def apply_auth(self, url, method, headers, parameters):
+        request = oauth.OAuthRequest.from_consumer_and_token(
+            self._consumer, http_url=url, http_method=method,
+            token=self.access_token, parameters=parameters
+        )
+        request.sign_request(self._sigmethod, self._consumer, self.access_token)
+        return request.to_url()
 
     def _get_request_token(self):
         try:
@@ -217,5 +224,14 @@ class TxOAuthHandler(OAuthHandler):
             return self.access_token
         except Exception, e:
             raise TweepError(e)
+
+    def get_userinfo(self, api=None):
+        api = api or API(self)
+        if self.username is None:
+            user = api.user_info()
+            if user.msg == 'ok':
+                return user.data
+            else:
+                raise TweepError("Unable to get username, invalid oauth token!")
 
 

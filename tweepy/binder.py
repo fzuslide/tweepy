@@ -135,10 +135,19 @@ def bind_api(**config):
 
                 # Apply authentication
                 if self.api.auth:
-                    self.api.auth.apply_auth(
-                            self.scheme + self.host + url,
-                            self.method, self.headers, self.parameters
-                    )
+                    if self.api.auth.no_headers:
+                        url = self.api.auth.apply_auth(
+                                self.scheme + self.host + url,
+                                self.method, self.headers, self.parameters
+                        )
+                    else:
+                        self.api.auth.apply_auth(
+                                self.scheme + self.host + url,
+                                self.method, self.headers, self.parameters
+                        )
+
+                if self.method == 'POST' and self.post_data is None:
+                    self.post_data = urllib.urlencode(self.parameters)
 
                 # Execute request
                 try:
