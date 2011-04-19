@@ -4,6 +4,7 @@
 
 import os
 import mimetypes
+import urllib
 
 from tweepy.binder import bind_api
 from tweepy.error import TweepError
@@ -189,9 +190,32 @@ class API(object):
         require_auth = True
     )
 
-    """ /upload """
+    """ t/add_pic"""
     def t_add_pic(self, filename, content, clientip=None, jing=None, wei=None):
         headers, post_data = API._pack_tx_image(1024, filename, "pic", content=content, clientip=clientip, jing=jing, wei=wei )
+        args = [content, clientip]
+        allowed_param = ['content', 'clientip']
+        
+        if jing is not None:
+            args.append(jing)
+            allowed_param.append('jing')
+        
+        if wei is not None:
+            args.append(wei)
+            allowed_param.append('wei')
+        
+        return bind_api(
+            path = '/api/t/add_pic',            
+            method = 'POST',
+            payload_type = 'status',
+            require_auth = True,
+            allowed_param = allowed_param            
+        )(self, *args, post_data=post_data, headers=headers)
+ 
+
+    """ t/add_pic"""
+    def t_add_pic_url(self, image_url, content, clientip=None, jing=None, wei=None):
+        headers, post_data = API._pack_tx_image_url(1024, image_url, "pic", content=content, clientip=clientip, jing=jing, wei=wei )
         args = [content, clientip]
         allowed_param = ['content', 'clientip']
         
@@ -210,7 +234,7 @@ class API(object):
             require_auth = True,
             allowed_param = allowed_param            
         )(self, *args, post_data=post_data, headers=headers)
- 
+
 
     
     """ statused/upload_url_text """
@@ -975,6 +999,52 @@ class API(object):
 
         body.append('--' + BOUNDARY)
         body.append('Content-Disposition: form-data; name="'+ contentname +'"; filename="%s"' % filename)
+        body.append('Content-Type: %s' % file_type)
+        body.append('Content-Transfer-Encoding: binary')
+        body.append('')
+        body.append(fp.read())
+        body.append('--' + BOUNDARY + '--')
+        body.append('')
+        fp.close()        
+        body.append('--' + BOUNDARY + '--')
+        body.append('')
+        body = '\r\n'.join(body)
+        # build headers
+        headers = {
+            'Content-Type': 'multipart/form-data; boundary=Tw3ePy',
+            'Content-Length': len(body)
+        }
+
+        return headers, body
+
+
+    """ Internal use only """
+    @staticmethod
+    def _pack_tx_image_url(max_size, image_url, contentname, **kwargs):
+        """Pack image from file into multipart-formdata post body"""
+        # image must be gif, jpeg, or png
+        file_type = mimetypes.guess_type(image_url)
+        if file_type is None:
+            raise TweepError('Could not determine file type')
+        file_type = file_type[0]
+        if file_type not in ['image/gif', 'image/jpeg', 'image/png']:
+            raise TweepError('Invalid file type for image: %s' % file_type)
+
+        # build the mulitpart-formdata body
+        fp = urllib.urlopen(image_url)
+        BOUNDARY = 'Tw3ePy'
+        body = []
+        for k in kwargs:
+            if kwargs[k] is not None:            
+                body.append('--' + BOUNDARY)
+                body.append('Content-Disposition: form-data; name="%s"' % k)
+                body.append('Content-Type: text/plain; charset=US-ASCII')
+                body.append('Content-Transfer-Encoding: 8bit')
+                body.append('')
+                body.append(kwargs[k])
+
+        body.append('--' + BOUNDARY)
+        body.append('Content-Disposition: form-data; name="'+ contentname +'"; filename="%s"' % image_url)
         body.append('Content-Type: %s' % file_type)
         body.append('Content-Transfer-Encoding: binary')
         body.append('')
